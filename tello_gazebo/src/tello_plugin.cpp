@@ -42,13 +42,13 @@ namespace tello_gazebo
   const double MAX_Z_A = 4.0;
   const double MAX_ANG_A = M_PI;
 
-  const double TAKEOFF_Z = 1.0;       // Takeoff target z position
-  const double TAKEOFF_Z_V = 0.5;     // Takeoff target z velocity
+  const double TAKEOFF_Z = 1.0;   // Takeoff target z position
+  const double TAKEOFF_Z_V = 0.5; // Takeoff target z velocity
 
-  const double LAND_Z = 0.1;          // Land target z position
-  const double LAND_Z_V = -0.5;       // Land target z velocity
+  const double LAND_Z = 0.1;    // Land target z position
+  const double LAND_Z_V = -0.5; // Land target z velocity
 
-  const int BATTERY_DURATION = 6000;  // Battery duration in seconds
+  const int BATTERY_DURATION = 6000; // Battery duration in seconds
 
   inline double clamp(const double v, const double max)
   {
@@ -67,11 +67,11 @@ namespace tello_gazebo
     };
 
     std::map<FlightState, const char *> state_strs_{
-      {FlightState::landed,       "landed"},
-      {FlightState::taking_off,   "taking_off"},
-      {FlightState::flying,       "flying"},
-      {FlightState::landing,      "landing"},
-      {FlightState::dead_battery, "dead_battery"},
+        {FlightState::landed, "landed"},
+        {FlightState::taking_off, "taking_off"},
+        {FlightState::flying, "flying"},
+        {FlightState::landing, "landing"},
+        {FlightState::dead_battery, "dead_battery"},
     };
 
     FlightState flight_state_;
@@ -110,12 +110,11 @@ namespace tello_gazebo
     pid::Controller yaw_controller_{false, 2, 0, 0};
 
   public:
-
     TelloPlugin()
     {
-      (void) update_connection_;
-      (void) command_srv_;
-      (void) cmd_vel_sub_;
+      (void)update_connection_;
+      (void)command_srv_;
+      (void)cmd_vel_sub_;
 
       transition(FlightState::landed);
     }
@@ -137,7 +136,8 @@ namespace tello_gazebo
     {
       double x, y, z, yaw;
 
-      try {
+      try
+      {
         std::istringstream iss(rc_command, std::istringstream::in);
         std::string s;
         iss >> s; // "rc"
@@ -149,40 +149,44 @@ namespace tello_gazebo
         z = std::stof(s);
         iss >> s;
         yaw = std::stof(s);
-      } catch (std::exception e) {
+      }
+      catch (std::exception e)
+      {
         RCLCPP_ERROR(node_->get_logger(), "can't parse rc command '%s', exception %s", rc_command.c_str(), e.what());
         return;
       }
 
       set_target_velocities(
-        x * MAX_XY_V,
-        y * MAX_XY_V,
-        z * MAX_Z_V,
-        yaw * MAX_ANG_V);
+          x * MAX_XY_V,
+          y * MAX_XY_V,
+          z * MAX_Z_V,
+          yaw * MAX_ANG_V);
     }
 
     void transition(FlightState next)
     {
-      if (node_ != nullptr) {
+      if (node_ != nullptr)
+      {
         RCLCPP_INFO(node_->get_logger(), "transition from '%s' to '%s'", state_strs_[flight_state_], state_strs_[next]);
       }
 
       flight_state_ = next;
 
-      switch (flight_state_) {
-        case FlightState::landed:
-        case FlightState::flying:
-        case FlightState::dead_battery:
-          set_target_velocities(0, 0, 0, 0);
-          break;
+      switch (flight_state_)
+      {
+      case FlightState::landed:
+      case FlightState::flying:
+      case FlightState::dead_battery:
+        set_target_velocities(0, 0, 0, 0);
+        break;
 
-        case FlightState::taking_off:
-          set_target_velocities(0, 0, TAKEOFF_Z_V, 0);
-          break;
+      case FlightState::taking_off:
+        set_target_velocities(0, 0, TAKEOFF_Z_V, 0);
+        break;
 
-        case FlightState::landing:
-          set_target_velocities(0, 0, LAND_Z_V, 0);
-          break;
+      case FlightState::landing:
+        set_target_velocities(0, 0, LAND_Z_V, 0);
+        break;
       }
     }
 
@@ -195,13 +199,16 @@ namespace tello_gazebo
       std::string link_name{"base_link"};
 
       // In theory we can move much of this config into the <ros> tag, perhaps it's finished in Eloquent?
-      if (sdf->HasElement("link_name")) {
+      if (sdf->HasElement("link_name"))
+      {
         link_name = sdf->GetElement("link_name")->Get<std::string>();
       }
-      if (sdf->HasElement("center_of_mass")) {
+      if (sdf->HasElement("center_of_mass"))
+      {
         center_of_mass_ = sdf->GetElement("center_of_mass")->Get<ignition::math::Vector3d>();
       }
-      if (sdf->HasElement("battery_duration")) {
+      if (sdf->HasElement("battery_duration"))
+      {
         battery_duration_ = sdf->GetElement("center_of_mass")->Get<int>();
       }
 
@@ -227,7 +234,8 @@ namespace tello_gazebo
       // Fix by adding <parameter name="use_sim_time" type="bool">1</parameter> to the SDF file
       bool use_sim_time;
       node_->get_parameter("use_sim_time", use_sim_time);
-      if (!use_sim_time) {
+      if (!use_sim_time)
+      {
         RCLCPP_ERROR(node_->get_logger(), "use_sim_time is false, could be a bug");
       }
 
@@ -249,19 +257,21 @@ namespace tello_gazebo
 
       // Listen for the Gazebo update event. This event is broadcast every simulation iteration.
       update_connection_ = gazebo::event::Events::ConnectWorldUpdateBegin(
-        boost::bind(&TelloPlugin::OnUpdate, this, _1));
+          boost::bind(&TelloPlugin::OnUpdate, this, _1));
     }
 
     // Called by the world update start event, up to 1000 times per second.
     void OnUpdate(const gazebo::common::UpdateInfo &info)
     {
       // Do nothing if the battery is dead
-      if (flight_state_ == FlightState::dead_battery) {
+      if (flight_state_ == FlightState::dead_battery)
+      {
         return;
       }
 
       // 10Hz timer
-      if ((info.simTime - ten_hz_time_).Double() > 0.1) {
+      if ((info.simTime - ten_hz_time_).Double() > 0.1)
+      {
         spin_10Hz();
         ten_hz_time_ = info.simTime;
       }
@@ -271,7 +281,8 @@ namespace tello_gazebo
       update_time_ = info.simTime;
 
       // Don't apply force if we're landed
-      if (flight_state_ != FlightState::landed) {
+      if (flight_state_ != FlightState::landed)
+      {
         // Get current velocity
         ignition::math::Vector3d linear_velocity = base_link_->RelativeLinearVel();
         ignition::math::Vector3d angular_velocity = base_link_->RelativeAngularVel();
@@ -317,20 +328,27 @@ namespace tello_gazebo
 #pragma ide diagnostic ignored "UnusedValue"
 
     void command_callback(
-      const std::shared_ptr<rmw_request_id_t> request_header,
-      const std::shared_ptr<tello_msgs::srv::TelloAction::Request> request,
-      std::shared_ptr<tello_msgs::srv::TelloAction::Response> response)
+        const std::shared_ptr<rmw_request_id_t> request_header,
+        const std::shared_ptr<tello_msgs::srv::TelloAction::Request> request,
+        std::shared_ptr<tello_msgs::srv::TelloAction::Response> response)
     {
-      if (request->cmd == "takeoff" && flight_state_ == FlightState::landed) {
+      if (request->cmd == "takeoff" && flight_state_ == FlightState::landed)
+      {
         transition(FlightState::taking_off);
         response->rc = response->OK;
-      } else if (request->cmd == "land" && flight_state_ == FlightState::flying) {
+      }
+      else if (request->cmd == "land" && flight_state_ == FlightState::flying)
+      {
         transition(FlightState::landing);
         response->rc = response->OK;
-      } else if (is_prefix("rc", request->cmd) && flight_state_ == FlightState::flying) {
+      }
+      else if (is_prefix("rc", request->cmd) && flight_state_ == FlightState::flying)
+      {
         set_target_velocities(request->cmd);
         response->rc = response->OK;
-      } else {
+      }
+      else
+      {
         RCLCPP_WARN(node_->get_logger(), "ignoring command '%s'", request->cmd.c_str());
         response->rc = response->ERROR_BUSY;
       }
@@ -340,13 +358,14 @@ namespace tello_gazebo
 
     void cmd_vel_callback(const geometry_msgs::msg::Twist::SharedPtr msg)
     {
-      if (flight_state_ == FlightState::flying) {
+      if (flight_state_ == FlightState::flying)
+      {
         // TODO cmd_vel should specify velocity, not joystick position
         set_target_velocities(
-          msg->linear.x * MAX_XY_V,
-          msg->linear.y * MAX_XY_V,
-          msg->linear.z * MAX_Z_V,
-          msg->angular.z * MAX_ANG_V);
+            msg->linear.x * MAX_XY_V,
+            msg->linear.y * MAX_XY_V,
+            msg->linear.z * MAX_Z_V,
+            msg->angular.z * MAX_ANG_V);
       }
     }
 
@@ -363,13 +382,15 @@ namespace tello_gazebo
       rclcpp::Time ros_time = node_->now();
 
       // Wait for ROS time to get reasonable TODO sometimes this never happens
-      if (ros_time.seconds() < 1.0) {
+      if (ros_time.seconds() < 1.0)
+      {
         return;
       }
 
       // Simulate a battery
       int battery_percent = static_cast<int>((battery_duration_ - ros_time.seconds()) / battery_duration_ * 100);
-      if (battery_percent <= 0) {
+      if (battery_percent <= 0)
+      {
         // We're dead
         transition(FlightState::dead_battery);
         return;
@@ -380,17 +401,31 @@ namespace tello_gazebo
       flight_data.header.stamp = ros_time;
       flight_data.sdk = flight_data.SDK_1_3;
       flight_data.bat = battery_percent;
+
+      fill_position(base_link_->WorldPose(), flight_data);
       flight_data_pub_->publish(flight_data);
 
       // Finish pending actions
       ignition::math::Pose3d pose = base_link_->WorldPose();
-      if (flight_state_ == FlightState::taking_off && pose.Pos().Z() > TAKEOFF_Z) {
+
+      if (flight_state_ == FlightState::taking_off && pose.Pos().Z() > TAKEOFF_Z)
+      {
         transition(FlightState::flying);
         respond_ok();
-      } else if (flight_state_ == FlightState::landing && pose.Pos().Z() < LAND_Z) {
+      }
+      else if (flight_state_ == FlightState::landing && pose.Pos().Z() < LAND_Z)
+      {
         transition(FlightState::landed);
         respond_ok();
       }
+    }
+
+    void fill_position(const ignition::math::Pose3d &pose, tello_msgs::msg::FlightData &flight_data)
+    {
+      auto position = pose.Pos();
+      flight_data.x = position.X();
+      flight_data.y = position.Y();
+      flight_data.z = position.Z();
     }
   };
 
