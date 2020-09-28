@@ -419,13 +419,16 @@ namespace tello_gazebo
         respond_ok();
       }
     }
-
     void fill_position(const ignition::math::Pose3d &pose, tello_msgs::msg::FlightData &flight_data)
     {
       auto position = pose.Pos();
       flight_data.x = position.X();
       flight_data.y = position.Y();
       flight_data.z = position.Z();
+      auto rpi = pose.Rot();
+      flight_data.roll = rpi.Roll();
+      flight_data.pitch = rpi.Pitch();
+      flight_data.yaw = rpi.Yaw();
     }
   };
 

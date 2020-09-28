@@ -19,9 +19,9 @@ uint8 sdk
 # SDK 1.3+ fields
 #######
 
-int32 pitch   # pitch in degrees
-int32 roll    # roll in degrees
-int32 yaw     # yaw in degrees relative to startup orientation
+float32 pitch   # pitch in degrees
+float32 roll    # roll in degrees
+float32 yaw     # yaw in degrees relative to startup orientation
 
 int32 vgx     # x velocity in m/s, +forward
 int32 vgy     # y velocity in m/s, +right
@@ -48,6 +48,6 @@ float32 agz   # z acceleration in mm/s^2, +down
 #######
 
 int32 mid     # mission pad id, or -1 if not found
-int32 x       # x coord relative to mission pad in cm, or 0 if not found
-int32 y       # y coord relative to mission pad in cm, or 0 if not found
-int32 z       # z coord relative to mission pad in cm, or 0 if not found
+float32 x       # x coord relative to mission pad in cm, or 0 if not found
+float32 y       # y coord relative to mission pad in cm, or 0 if not found
+float32 z       # z coord relative to mission pad in cm, or 0 if not found

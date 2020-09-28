@@ -43,7 +43,8 @@ find_package(tello_msgs REQUIRED)
 # Package includes not needed for CMake >= 2.8.11
 include_directories(
   include
-  h264decoder)
+  h264decoder
+  packetparser)
 
 # h264decoder uses deprecated ffmpeg calls, turn off the warnings
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations")
@@ -151,6 +152,16 @@ endif ()
 # Tello driver main, statically linked to make IDE debugging easier
 #=============
 
+# Locate GTest
+find_package(GTest REQUIRED)
+include_directories(${GTEST_INCLUDE_DIRS})
+
+add_executable(protocol_test
+packetparser/test/protocol_test.cpp
+packetparser/protocol.cpp
+)
+target_link_libraries(protocol_test ${GTEST_LIBRARIES} pthread)
+
 add_executable(tello_driver_main
   src/tello_driver_main.cpp
   ${DRIVER_NODE_SOURCES})
@@ -192,7 +203,7 @@ install(
 
 # Install executables
 install(
-  TARGETS tello_driver_main tello_joy_main tello_emulator
+  TARGETS tello_driver_main tello_joy_main tello_emulator protocol_test
   DESTINATION lib/${PROJECT_NAME}
 )
 
