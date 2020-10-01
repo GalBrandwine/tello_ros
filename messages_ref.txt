@@ -1,0 +1,34 @@
+set altitude limit 30m:
+First:
+pkt = Packet(SET_ALT_LIMIT_CMD)
+PRINT: bytearray(b'\xcc\x00\x00\x00hX\x00\x00\x00') // 'SET_ALT_LIMIT_CMD' == 0x0058[16] == X[ascii]
+
+Then:
+pkt.add_byte(0x1e)  # 30m // 0x1e[16] == 30[10]
+PRINT: bytearray(b'\xcc\x00\x00\x00hX\x00\x00\x00\x1e') //0x1e located at byte 9 (e.g beginning of data section)
+
+Then:
+pkt.add_byte(0x00)
+PRINT: bytearray(b'\xcc\x00\x00\x00hX\x00\x00\x00\x1e\x00') // Close the message with CRC16 oc bytes 0 to 8
+
+Then:
+self.send_packet(pkt)
+
+Then:
+PRINT: takeoff (cmd=0x54 seq=0x01e4)
+pkt = Packet(TAKEOFF_CMD)
+PRINT: bytearray(b'\xcc\x00\x00\x00hT\x00\x00\x00') // 'TAKEOFF_CMD' == T[ascii] == 0x54[16] 
+
+(It Appears that TAKEOFF_CMD is just a Type, with no DATA)
+
+Then:
+pkt.fixup()
+PRINT: bytearray(b'\xccX\x00|hT\x00\x00\x00\xb2\x89') // CRC16 added
+
+Then:
+self.send_packet(pkt)
+
+
+
+So Final TAKEOFF_CMD packet:
+bytearray(b'\xccX\x00|hT\x00\x00\x00\xb2\x89')

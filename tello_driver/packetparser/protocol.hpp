@@ -1,6 +1,6 @@
 #pragma once
 #include <chrono>
-#include <string.h>
+#include <string>
 #include <algorithm>
 #include "utils.hpp"
 #include "crc.hpp"
@@ -81,25 +81,25 @@ namespace tello_protocol
     class Packet
     {
     public:
-        Packet(const std::string &cmd, const unsigned char pkt_type = 0x68, const unsigned char *payoad = nullptr);
-        Packet(unsigned char *cmd, const unsigned char pkt_type = 0x68, const unsigned char *payoad = nullptr);
-        Packet(const int cmd, const unsigned char pkt_type = 0x68, const unsigned char *payoad = nullptr);
+        Packet(const std::string &cmd);
+        Packet(const std::string &cmd, const std::string &payload, const unsigned char pkt_type = 0x68);
+        Packet(const unsigned int cmd, const unsigned char pkt_type = 0x68);
+        Packet(const unsigned int cmd, const std::string &payload, const unsigned char pkt_type = 0x68);
         ~Packet();
         void Fixup(int seq_num = 0);
-        const unsigned char *GetBuffer() const;
+        const std::string &GetBuffer() const;
         const int GetBufferSize() const;
-        std::unique_ptr<unsigned char>  GetData() const;
+        const std::string GetData() const;
 
-        void add_time();
         void get_time();
-        void AddByte(const unsigned char val, const int index);
-        // friend std::ostream &operator<<(std::ostream &os, const Packet &pkt);
+        void AddTime(const tm *time);
+        void AddByte(const unsigned char val);
 
     private:
         int m_bufSize;
-        unsigned char *m_buf = nullptr;
-        void addInt16(const int16_t val, const int index);
-        
+        std::string m_buf_hex; // = nullptr;
+        std::string m_buf_dec; // = nullptr;
+        void addInt16(const int16_t val);
     };
 }; // namespace tello_protocol
 
@@ -108,7 +108,7 @@ static std::ostream &operator<<(std::ostream &os, const tello_protocol::Packet &
     os << "Packet: ";
     for (size_t i = 0; i < pkt.GetBufferSize(); i++)
     {
-        os << std::hex << static_cast<unsigned>(pkt.GetBuffer()[i]) << " ";
+        os << std::hex << (int)(pkt.GetBuffer()[i]) << " ";
     }
     os << "\n";
     return os;

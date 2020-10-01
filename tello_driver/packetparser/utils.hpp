@@ -1,4 +1,24 @@
 #pragma once
+#include <chrono>
+
+// struct TimeStruct
+// {
+//     int64_t microsec;
+//     int64_t sec;
+//     int64_t min;
+//     int64_t hrs;
+//     TimeStruct()
+//     {
+//         std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
+//         auto duration = now.time_since_epoch();
+//         microsec = std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
+//         sec = std::chrono::duration_cast<std::chrono::seconds>(duration).count();
+//         min = std::chrono::duration_cast<std::chrono::minutes>(duration).count();
+//         hrs = std::chrono::duration_cast<std::chrono::hours>(duration).count();
+//     }
+// };
+
+
 struct Byte
 {
     // Left most

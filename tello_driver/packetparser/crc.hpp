@@ -1,5 +1,5 @@
 #pragma once
-
+#include <string>
 static const int crc8table_size = 256, crc16table_size = 256;
 static const unsigned int crc8table[] = {
     0x00, 0x5e, 0xbc, 0xe2, 0x61, 0x3f, 0xdd, 0x83,
@@ -35,18 +35,22 @@ static const unsigned int crc8table[] = {
     0x74, 0x2a, 0xc8, 0x96, 0x15, 0x4b, 0xa9, 0xf7,
     0xb6, 0xe8, 0x0a, 0x54, 0xd7, 0x89, 0x6b, 0x35};
 
-static unsigned const char crc8(const unsigned char *buf, int buf_length)
+static unsigned const char crc8(const std::string &buf)
 {
     unsigned int crc = 0x77;
-    for (int i = 0; i < buf_length; i++)
+    for (auto &v : buf)
     {
-        auto &v = buf[i];
         crc = crc8table[(crc ^ v) & 0xff];
     }
+    // for (int i = 0; i < buf_length; i++)
+    // {
+    //     auto &v = buf[i];
+    //     crc = crc8table[(crc ^ v) & 0xff];
+    // }
     return crc;
 };
 
-static const unsigned int crc16table[] = {
+static const unsigned short crc16table[] = {
     0x0000, 0x1189, 0x2312, 0x329b, 0x4624, 0x57ad, 0x6536, 0x74bf,
     0x8c48, 0x9dc1, 0xaf5a, 0xbed3, 0xca6c, 0xdbe5, 0xe97e, 0xf8f7,
     0x1081, 0x0108, 0x3393, 0x221a, 0x56a5, 0x472c, 0x75b7, 0x643e,
@@ -80,14 +84,18 @@ static const unsigned int crc16table[] = {
     0xf78f, 0xe606, 0xd49d, 0xc514, 0xb1ab, 0xa022, 0x92b9, 0x8330,
     0x7bc7, 0x6a4e, 0x58d5, 0x495c, 0x3de3, 0x2c6a, 0x1ef1, 0x0f78};
 
-static unsigned const char crc16(const unsigned char *buf, int buf_length)
+static unsigned const short crc16(const std::string &buf)
 {
-    unsigned int crc = 0x3692;
-    for (int i = 0; i < buf_length; i++)
+    unsigned short crc = 0x3692;
+    for (auto &v : buf)
     {
-        auto &v = buf[i];
-        // crc = crc16table[(crc ^ v) & 0xff];
         crc = crc16table[(crc ^ int(v)) & 0xff] ^ (crc >> 8);
     }
+    // for (int i = 0; i < buf_length; i++)
+    // {
+    //     auto &v = buf[i];
+    //     // crc = crc16table[(crc ^ v) & 0xff];
+    //     crc = crc16table[(crc ^ int(v)) & 0xff] ^ (crc >> 8);
+    // }
     return crc;
 };

@@ -1,5 +1,6 @@
 #include "protocol.hpp"
 #include <iostream>
+#include <string>
 #include <gtest/gtest.h>
 
 TEST(TelloProtocolTest, TestHexValue)
@@ -9,11 +10,11 @@ TEST(TelloProtocolTest, TestHexValue)
 
 TEST(TelloProtocolTest, PacketStringCmd)
 {
-    std::string cmd("TAKEOFF");
+    const std::string cmd("TAKEOFF");
     auto packet = tello_protocol::Packet(cmd);
     for (int i = 0; i < packet.GetBufferSize(); i++)
     {
-        ASSERT_EQ(cmd.at(i), packet.GetBuffer()[i]);
+        ASSERT_EQ(cmd.at(i), packet.GetBuffer().at(i));
     }
 }
 
@@ -49,29 +50,70 @@ TEST(TelloProtocolTest, PacketByteCmd)
                            |      |      TAKEOFF_CMD = 0x00 0x54 (little endian)
                            |      |                 |    |
     */
-    unsigned char res[] = {0xcc, 0x58, 0x0, 0x5B, 0x68, 0x54, 0, 0, 0};
+    unsigned char res[] = {0xcc, 0x58, 0x00, 0x7c, 0x68, 0x54, 0x00, 0x00, 0x00, 0xb2, 0x89};
     for (int i = 0; i < pkt.GetBufferSize(); i++)
     {
-        ASSERT_EQ(res[i], pkt.GetBuffer()[i]);
+        ASSERT_EQ(res[i], (unsigned char)pkt.GetBuffer()[i]);
     }
 }
 
 TEST(TelloProtocolTest, PacketGetData)
 {
 
-    std::string cmd("TestTest0TAKEOFF");
-    auto pkt = tello_protocol::Packet(cmd);
-    pkt.Fixup();
+    // std::string cmd();
+    auto pkt = tello_protocol::Packet(tello_protocol::TAKEOFF_CMD);
+    //bytearray(b'\xcc\x00\x00\x00hT\x00\x00\x00') T == 0x54, h == 0x68
+    unsigned char test[] = {0xcc, 0x00, 0x00, 0x00, 0x68, 0x54, 0x00, 0x00, 0x00};
+    for (int i = 0; i < pkt.GetBufferSize(); i++)
+    {
+        ASSERT_EQ(test[i], (unsigned char)pkt.GetBuffer()[i]);
+    }
 
+    pkt.Fixup();
     std::cout << pkt;
 
     // Test - Data start's from 9th Byte
-    auto test = pkt.GetData();
-    for (int i = 0; i < cmd.length() - 9; i++)
+    // bytearray(b'\xccX\x00|hT\x00\x00\x00\xb2\x89')
+    unsigned char test2[] = {0xcc, 0x58, 0x00, 0x7c, 0x68, 0x54, 0x00, 0x00, 0x00, 0xb2, 0x89};
+    auto testData = pkt.GetBuffer();
+    for (int i = 0; i < pkt.GetBufferSize(); i++)
     {
-        // std::cout << cmd.at(i + 9) << ", " << test.get()[i] << "\n";
-        ASSERT_EQ(cmd.at(i + 9), test.get()[i]);
+        ASSERT_EQ(test2[i], (unsigned char)testData.at(i));
     }
+}
+
+TEST(TelloProtocolTest, PacketAddTime)
+{
+
+    std::string cmd("TestTest0TAKEOFF");
+    auto pkt = tello_protocol::Packet(cmd);
+
+    time_t now = time(0);
+    auto timenow = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    // convert now to string form
+    char *dt = ctime(&timenow);
+
+    std::cout << "The local date and time is: " << dt << std::endl;
+
+    tm *gmtm = gmtime(&timenow);
+    pkt.AddTime(gmtm);
+    pkt.Fixup();
+
+    std::cout << pkt << std::endl;
+
+    // Test - Data start's from 9th Byte
+    auto test = pkt.GetData();
+    // Extract time:
+    auto time_str = test.substr(7);
+    // Little endian
+    auto hour = (unsigned char *)time_str.substr(0, 2).c_str();
+    ASSERT_EQ(*hour, gmtm->tm_hour);
+
+    auto min = (unsigned char *)time_str.substr(2, 3).c_str();
+    ASSERT_EQ(*min, gmtm->tm_min);
+
+    auto sec = (unsigned char *)time_str.substr(4, 6).c_str();
+    ASSERT_EQ(*sec, gmtm->tm_sec);
 }
 
 int main(int argc, char **argv)
