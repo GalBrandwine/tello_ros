@@ -91,7 +91,7 @@ namespace tello_protocol
         const int GetBufferSize() const;
         const std::string GetData() const;
 
-        void get_time();
+        std::unique_ptr<tm*> GetTime(unsigned char *buff = nullptr) const;
         void AddTime(const tm *time);
         void AddByte(const unsigned char val);
 

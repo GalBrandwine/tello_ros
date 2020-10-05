@@ -32,3 +32,12 @@ self.send_packet(pkt)
 
 So Final TAKEOFF_CMD packet:
 bytearray(b'\xccX\x00|hT\x00\x00\x00\xb2\x89')
+
+
+
+# tello_driver conn_req: "conn_req:\226\027"
+# TelloPy conn_req: "'conn_req:\x96\x17'"
+ After translating to bytes: 63 6f 6e 6e 5f 72 65 71 3a 96 17
+
+636f6e6e5f7265713a9617
+
