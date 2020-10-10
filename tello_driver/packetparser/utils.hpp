@@ -47,3 +47,8 @@ static int16_t int16(unsigned char val0, unsigned char val1)
         return (val0 & 0xff) | ((val1 & 0xff) << 8);
     }
 }
+
+static const uint16_t uint16(unsigned char val0, unsigned char val1)
+{
+    return (val0 & 0xff) | ((val1 & 0xff) << 8);
+}

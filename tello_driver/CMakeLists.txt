@@ -44,7 +44,9 @@ find_package(tello_msgs REQUIRED)
 include_directories(
   include
   h264decoder
-  packetparser)
+  packetparser
+  tello_telemetry
+  )
 
 # h264decoder uses deprecated ffmpeg calls, turn off the warnings
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations")
@@ -55,6 +57,12 @@ set(node_plugins "")
 #=============
 # Tello driver node
 #=============
+
+set(TELLO_LOG_DATA_SOURES
+  packetparser/protocol.cpp
+  tello_telemetry/flight_data/FlightData.cpp
+  tello_telemetry/TelloTelemetry.cpp
+)
 
 set(DRIVER_NODE_SOURCES
   src/tello_driver_node.cpp
@@ -156,14 +164,19 @@ endif ()
 find_package(GTest REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
 
-add_executable(protocol_test
-packetparser/test/protocol_test.cpp
-packetparser/protocol.cpp
+add_executable(tello_tests
+  test/tello_tests.cpp
+  packetparser/test/packet_test.cpp
+  tello_telemetry/test/flight_data_test.cpp
+
+  ${TELLO_LOG_DATA_SOURES}
 )
-target_link_libraries(protocol_test ${GTEST_LIBRARIES} pthread)
+
+target_link_libraries(tello_tests ${GTEST_LIBRARIES} pthread)
 
 add_executable(tello_driver_main
   src/tello_driver_main.cpp
+  src/tello_flight_data_socket.cpp
   ${DRIVER_NODE_SOURCES})
 
 ament_target_dependencies(tello_driver_main
@@ -203,7 +216,7 @@ install(
 
 # Install executables
 install(
-  TARGETS tello_driver_main tello_joy_main tello_emulator protocol_test
+  TARGETS tello_driver_main tello_joy_main tello_emulator tello_tests
   DESTINATION lib/${PROJECT_NAME}
 )
 

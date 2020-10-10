@@ -22,12 +22,18 @@ namespace tello_protocol
         m_bufSize = cmd.length();
         m_buf_hex = cmd;
     }
-    // Packet::Packet(unsigned char *cmd, const unsigned char pkt_type, const unsigned char *payoad)
-    // {
-    //     // TODO: calculate buff size;
-    //     m_bufSize = -1;
-    //     m_buf_hex = std::string(cmd);
-    // }
+    Packet::Packet(const std::vector<unsigned char> &data)
+        : m_bufSize(data.size())
+    {
+#include "utils/Timer.hpp"
+        Timer timer;
+        // Method 1 - Timer took: 0.060789ms
+        // for (auto &letter : data)
+        //     m_buf_hex += letter;
+
+        // Method 2 - Timer took: 0.057199ms
+        m_buf_hex = std::string{data.begin(), data.end()};
+    }
 
     Packet::Packet(const unsigned int cmd, const unsigned char pkt_type)
     {
@@ -68,8 +74,7 @@ namespace tello_protocol
     }
     const std::string Packet::GetData() const
     {
-        // Data section start after 9 bytes
-        return m_buf_hex.substr(9);
+        return m_buf_hex.substr(9, m_bufSize);
     }
     const std::string &Packet::GetBuffer() const
     {
@@ -128,7 +133,6 @@ namespace tello_protocol
 
         auto timenow = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
         tm *gmtm = gmtime(&timenow);
-        // std::unique_ptr<tm *> ptrGmtm =
 
         gmtm->tm_hour = hour;
         gmtm->tm_min = min;

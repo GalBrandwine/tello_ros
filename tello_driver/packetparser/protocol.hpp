@@ -6,6 +6,7 @@
 #include "crc.hpp"
 #include <iostream>
 #include <memory>
+#include <vector>
 namespace tello_protocol
 {
     //low-level Protocol (https://tellopilots.com/wiki/protocol/#MessageIDs)
@@ -82,6 +83,7 @@ namespace tello_protocol
     {
     public:
         Packet(const std::string &cmd);
+        Packet(const std::vector<unsigned char> &);
         Packet(const std::string &cmd, const std::string &payload, const unsigned char pkt_type = 0x68);
         Packet(const unsigned int cmd, const unsigned char pkt_type = 0x68);
         Packet(const unsigned int cmd, const std::string &payload, const unsigned char pkt_type = 0x68);
@@ -89,9 +91,9 @@ namespace tello_protocol
         void Fixup(int seq_num = 0);
         const std::string &GetBuffer() const;
         const int GetBufferSize() const;
-        const std::string GetData() const;
+        const std::string GetData() const; // Copy data
 
-        std::unique_ptr<tm*> GetTime(unsigned char *buff = nullptr) const;
+        std::unique_ptr<tm *> GetTime(unsigned char *buff = nullptr) const;
         void AddTime(const tm *time);
         void AddByte(const unsigned char val);
 
