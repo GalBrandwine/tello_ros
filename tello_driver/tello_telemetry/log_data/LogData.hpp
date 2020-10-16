@@ -4,18 +4,26 @@
 #include "spdlog/fmt/bin_to_hex.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
 
+#include "log_data/LogNewMvoFeedback.hpp"
+
+#define ID_NEW_MVO_FEEDBACK 29
+#define ID_IMU_ATTI 2048
+
 namespace tello_protocol
 {
     class LogData
     {
     public:
+        void Update(const std::string&);
         LogData(std::shared_ptr<spdlog::logger>);
         ~LogData();
 
     private:
         std::shared_ptr<spdlog::logger> m_logger;
-    };
-
+        int m_count = 0;
+        std::vector<unsigned short> m_UnknownIDs;
+        LogNewMvoFeedback m_LogMvoFeedback;
+    };  
 } // namespace tello_protocol
 
 /* 

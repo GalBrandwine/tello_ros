@@ -61,6 +61,8 @@ set(node_plugins "")
 set(TELLO_LOG_DATA_SOURES
   packetparser/protocol.cpp
   tello_telemetry/flight_data/FlightData.cpp
+  tello_telemetry/log_data/LogData.cpp
+  tello_telemetry/log_data/LogNewMvoFeedback.cpp
   tello_telemetry/TelloTelemetry.cpp
 )
 

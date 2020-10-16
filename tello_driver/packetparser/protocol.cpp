@@ -25,8 +25,6 @@ namespace tello_protocol
     Packet::Packet(const std::vector<unsigned char> &data)
         : m_bufSize(data.size())
     {
-#include "utils/Timer.hpp"
-        Timer timer;
         // Method 1 - Timer took: 0.060789ms
         // for (auto &letter : data)
         //     m_buf_hex += letter;

@@ -54,7 +54,6 @@ TEST(TelloCommandTest, SendConnReq)
 }
 TEST(TelloTelemetryTest, ReceiveLogHeaderOnlyOnce)
 {
-
     // Setup
     using asio::ip::udp;
 
@@ -111,7 +110,7 @@ TEST(TelloTelemetryTest, ReceiveLogHeaderOnlyOnce)
             // LOG HEADER MSg is the biggest log message.
             // Drone will continue to send log_header connection requests with incremental ID.
             auto id = uint16(data[9], data[10]);
-            
+
             telloTelemerty.SetBuildDate(received.GetBuffer().substr(28, 26));
             telloTelemerty.SetDJILogVersion(received.GetBuffer().substr(245, 6)); // DJI LOG VERSION something like this: DJI_LOG_V3I��Rc
 
@@ -139,20 +138,32 @@ TEST(TelloTelemetryTest, ReceiveLogHeaderOnlyOnce)
     }
     TearDownTestCase();
 }
-
-TEST(TelloTelemetryTest, ReceiveLogDataMsg)
+TEST(TelloTelemetryTest, ReceiveLogHeaderMsg)
 {
+
     // Setup
     using asio::ip::udp;
+
+    // Input socket
     asio::io_service io_service_; // Manages IO for this socket
     unsigned short port = 9000;
+    udp::socket tello_socket(io_service_, udp::endpoint(udp::v4(), port)); // The socket
+
+    // Output socket
     unsigned short drone_port = 8889;
     std::string drone_ip = "192.168.10.1";
     udp::endpoint remote_endpoint_(asio::ip::address_v4::from_string(drone_ip), drone_port);
-    udp::socket tello_socket(io_service_, udp::endpoint(udp::v4(), port)); // The socket
+
     using namespace std::chrono_literals;
-    bool keep_receiving = true;
+    bool keep_receiving = true, is_log_header_received = false;
+    int received_counter;
     auto buffer_ = std::vector<unsigned char>(1024);
+
+    // Create TelloTelemetry instance.
+    auto telloTelemerty = tello_protocol::TelloTelemetry(spdlog::stdout_color_mt("tellemetry"));
+    auto logdata = std::make_shared<tello_protocol::LogData>(spdlog::stdout_color_mt("logdata"));
+    telloTelemerty.SetLogData(logdata);
+
     //Run
 
     // Connect
@@ -160,23 +171,49 @@ TEST(TelloTelemetryTest, ReceiveLogDataMsg)
     tello_socket.send_to(asio::buffer(pkt.GetBuffer()), remote_endpoint_);
 
     size_t r = 0;
-    tello_socket.send_to(asio::buffer(pkt.GetBuffer()), remote_endpoint_);
     std::this_thread::sleep_for(0.5s);
 
-    auto flight_data = tello_protocol::FlightData(spdlog::stdout_color_mt("flight_data"));
+    auto log_msg_logger = spdlog::stdout_color_mt("log_msg_logger");
+
+    auto send_ack = [&tello_socket, &remote_endpoint_, &log_msg_logger](const uint16_t id) {
+        auto pkt = tello_protocol::Packet(tello_protocol::LOG_HEADER_MSG, 0x50);
+        pkt.AddByte(0x00);
+        Byte byte = le16(id);
+        pkt.AddByte(byte.LeftNibble);
+        pkt.AddByte(byte.RightNibble);
+        pkt.Fixup();
+
+        tello_socket.send_to(asio::buffer(pkt.GetBuffer()), remote_endpoint_);
+    };
+
     while (keep_receiving)
     {
         r = tello_socket.receive(asio::buffer(buffer_));
-        std::cout << "r: " << r << '\n';
 
         // Create function
-        std::vector<unsigned char> data(buffer_.begin(), buffer_.begin() + r); // Strip last 2 bytes. they are CRC16
-
+        std::vector<unsigned char> data(buffer_.begin(), buffer_.begin() + r);
         auto received = tello_protocol::Packet(data);
-        auto cmd = uint16(received.GetBuffer()[5], received.GetBuffer()[6]);
 
-        /* 
-         elif cmd == LOG_DATA_MSG:
+        auto cmd = uint16(received.GetBuffer()[5], received.GetBuffer()[6]);
+        if (cmd == tello_protocol::LOG_HEADER_MSG)
+        {
+            // LOG HEADER MSg is the biggest log message.
+            // Drone will continue to send log_header connection requests with incremental ID.
+            auto id = uint16(data[9], data[10]);
+
+            telloTelemerty.SetBuildDate(received.GetBuffer().substr(28, 26));
+            telloTelemerty.SetDJILogVersion(received.GetBuffer().substr(254, 15)); // DJI LOG VERSION something like this: DJI_LOG_V3I��Rc
+            telloTelemerty.SetLogHeaderReceived();
+            // After sending back ack. the drone will not sent LOG_HEADER_MSG eny more.
+
+            send_ack(id);
+        }
+
+        else if (cmd == tello_protocol::LOG_DATA_MSG)
+        {
+            // log_msg_logger->info("recv: log_data");
+            telloTelemerty.GetLogData()->Update(received.GetBuffer().substr(10));
+            /* 
             log.debug("recv: log_data: length=%d, %s" % (len(data[9:]), byte_to_hexstring(data[9:])))
             self.__publish(event=self.EVENT_LOG_RAWDATA, data=data[9:])
             try:
@@ -186,18 +223,18 @@ TEST(TelloTelemetryTest, ReceiveLogDataMsg)
             except Exception as ex:
                 log.error('%s' % str(ex))
             self.__publish(event=self.EVENT_LOG_DATA, data=self.log_data)
-             */
-        if (cmd == tello_protocol::LOG_DATA_MSG)
-        {
-
-            if (flight_data.SetData(received.GetData()))
-            {
-                ASSERT_EQ(flight_data.GetFlightMode(), 6);
-                keep_receiving = false;
-            }
+            */
         }
+
         std::fill(buffer_.begin(), buffer_.end(), 0);
-        std::this_thread::sleep_for(0.5s);
+        // std::this_thread::sleep_for(0.5s);
+
+        // received_counter++;
+        // // Test is running for 5 sec
+        // if (received_counter <= 10)
+        // {
+        //     keep_receiving = false;
+        // }
     }
     TearDownTestCase();
 }
