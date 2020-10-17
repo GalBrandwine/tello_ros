@@ -14,6 +14,7 @@ namespace tello_protocol
     public:
         TelloTelemetry(std::shared_ptr<spdlog::logger>);
         ~TelloTelemetry();
+        
         void SetBuildDate(const std::string &);
         const std::string &GetBuildDate() const;
         void SetDJILogVersion(const std::string &);

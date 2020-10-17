@@ -46,6 +46,7 @@ include_directories(
   h264decoder
   packetparser
   tello_telemetry
+  utils/spdlog/include
   )
 
 # h264decoder uses deprecated ffmpeg calls, turn off the warnings
@@ -63,6 +64,7 @@ set(TELLO_LOG_DATA_SOURES
   tello_telemetry/flight_data/FlightData.cpp
   tello_telemetry/log_data/LogData.cpp
   tello_telemetry/log_data/LogNewMvoFeedback.cpp
+  tello_telemetry/log_data/LogNewImuAttiFeedback.cpp
   tello_telemetry/TelloTelemetry.cpp
 )
 

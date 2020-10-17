@@ -1,35 +1,39 @@
 #pragma once
 #include "protocol.hpp"
+#include "utils/telemetry_data/TelemetryData.hpp"
 #include "spdlog/spdlog.h"
 #include "spdlog/fmt/bin_to_hex.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
-#include "utils/telemetry_data/TelemetryData.hpp"
 namespace tello_protocol
 {
-    class LogNewMvoFeedback
+
+    class LogImuAtti
     {
     public:
-        const int GetUpdateCounter()const {return m_count;};
-        LogNewMvoFeedback(std::shared_ptr<spdlog::logger>);
-        ~LogNewMvoFeedback();
+        const int GetUpdateCounter() const { return m_count; };
+        LogImuAtti(std::shared_ptr<spdlog::logger>);
+        ~LogImuAtti();
         void Update(const std::string &, int count = 0);
-        const Vec3 &GetPos() const;
-        const Vec3 &GetVel() const;
-        bool IsVelUpdated() const;
-        bool IsPosUpdated() const;
-        friend std::ostream &operator<<(std::ostream &os, const LogNewMvoFeedback &dt)
+        const Vec3 &GetAcc() const;
+        const Vec3 &GetGyro() const;
+        const Vec3 &GetVg() const;
+        const Vec4 &GetQuat() const;
+        friend std::ostream &operator<<(std::ostream &os, const LogImuAtti &dt)
         {
-            os << "VEL: " << dt.m_Vel.x << " " << dt.m_Vel.y << " " << dt.m_Vel.z << " POS: " << dt.m_Pos.x << " " << dt.m_Pos.y << " " << dt.m_Pos.z << '\n';
+            os << "ACC: " << dt.m_acc.x << " " << dt.m_acc.y << " " << dt.m_acc.z << " ";
+            os << "GYRO: " << dt.m_gyro.x << " " << dt.m_gyro.y << " " << dt.m_gyro.z << " ";
+            os << "QUATERNION: " << dt.m_quat.x << " " << dt.m_quat.y << " " << dt.m_quat.z << dt.m_quat.w << " ";
+            os << "VG" << dt.m_vg.x << " " << dt.m_vg.y << " " << dt.m_vg.z << '\n';
             return os;
         }
 
     private:
         std::shared_ptr<spdlog::logger> m_logger;
-        const std::string m_data;
         int m_count = 0;
-        bool m_isVelUpdated = false, m_isPosUpdated = false;
-        Vec3 m_Pos;
-        Vec3 m_Vel;
+        Vec3 m_acc;
+        Vec3 m_gyro;
+        Vec3 m_vg;
+        Vec4 m_quat;
     };
 
 } // namespace tello_protocol
