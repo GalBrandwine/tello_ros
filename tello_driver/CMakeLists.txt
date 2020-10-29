@@ -180,7 +180,6 @@ target_link_libraries(tello_tests ${GTEST_LIBRARIES} pthread)
 
 add_executable(tello_driver_main
   src/tello_driver_main.cpp
-  src/tello_flight_data_socket.cpp
   ${DRIVER_NODE_SOURCES})
 
 ament_target_dependencies(tello_driver_main

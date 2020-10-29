@@ -1,20 +1,23 @@
 # `tello_ros`
 
-`tello_ros` is a ROS2 driver for Tello and Tello EDU drones.
+`tello_ros` is a ROS2 driver for Tello and **ALL** Tello drones.  
+This tello driver is based on [tello_ros](https://github.com/clydemcqueen/tello_ros).
+
 
 ## Packages
 
 There are 4 ROS packages:
 * `tello_driver` is a C++ ROS node that connects to the drone
-* `tello_msgs` is a set of ROS messages
-* `tello_description` contains robot description (URDF) files
-* `tello_gazebo` can be used to simulate a Tello drone in [Gazebo](http://gazebosim.org/),
+* `tello_msgs` is a set of ROS messages <---------------------------------------------------- NOT SURE IF NECESSARY
+* `tello_description` contains robot description (URDF) files <------------------------------ ALso
+* `tello_gazebo` can be used to simulate a Tello drone in [Gazebo](http://gazebosim.org/), <- Need to upgrade to fit the new tello_ros driver
  see the `README.md` in that package for details
 
 ## Interface
 
 ### Overview
 
+------ OLD DATA ------  
 The driver is designed to very simple while making it easy to integrate Tello drones into the ROS ecosystem.
 
 The driver communicates with the drone using the Tello SDK, which has several advantages:
@@ -77,6 +80,7 @@ The defaults work well for a single Tello drone.
 `drone_ip`    | Send commands to this IP address |  `192.168.10.1`
 `drone_port`  | Send commands to this UDP port | `8889`
 `command_port`| Send commands from this UDP port | `38065`
+`log_port`   | Flight log data (Tello state) will arrive on this UDP port  | `9000`
 `data_port`   | Flight data (Tello state) will arrive on this UDP port  | `8890`
 `video_port`  | Video data will arrive on this UDP port |  `11111`
 

@@ -3,7 +3,16 @@
 
 namespace tello_protocol
 {
-
+    void FlightData::SetAttLimit(const std::string &attlimit)
+    {
+        std::memcpy(&m_attitude_limit, &attlimit[1], sizeof(float));
+        m_logger->info("Setting Att: {}", m_attitude_limit);
+    }
+    void FlightData::SetAltLimit(const std::string &altlimit)
+    {
+        std::memcpy(&m_alt_limit, &altlimit[1], sizeof(short));
+        m_logger->info("Setting AltLimit: {}", m_alt_limit);
+    }
     const double FlightData::GetFlightMode() const
     {
         return m_fly_mode;

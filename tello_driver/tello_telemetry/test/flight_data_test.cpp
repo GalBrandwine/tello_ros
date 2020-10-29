@@ -1,5 +1,6 @@
 #include "flight_data_test.hpp"
 
+using namespace std::chrono_literals;
 TEST(TelloCommandTest, SendConnReq)
 {
     using asio::ip::udp;
@@ -135,12 +136,6 @@ TEST(TelloTelemetryTest, ReceiveLogHeaderOnce)
         }
 
         std::fill(buffer_.begin(), buffer_.end(), 0);
-
-        // received_counter++;
-        // if (received_counter > 1000)
-        // {
-        //     keep_receiving = false;
-        // }
     }
     ASSERT_TRUE(is_log_header_received);
 
@@ -213,7 +208,6 @@ TEST(TelloTelemetryTest, ReceiveLogDataMvoMsg)
         else if (cmd == tello_protocol::LOG_DATA_MSG)
         {
             telloTelemerty.GetLogData()->Update(received.GetBuffer().substr(10));
-            // std::cout << *telloTelemerty.GetLogData();
             log_data_msg_counter++;
         }
 
@@ -347,13 +341,352 @@ TEST(TelloTelemetryTest, ReceiveFlightData)
                 ASSERT_EQ(flight_data.GetFlightMode(), 6);
                 keep_receiving = false;
             }
-            // std::cout << "recv: flight data: " << flight_data << "\n";
-
-            // TODO: Test this in WIFI_MSG tests:
-            // flight_data.wifi_strength = self.wifi_strength;
         }
         std::fill(buffer_.begin(), buffer_.end(), 0);
         std::this_thread::sleep_for(0.5s);
+    }
+    TearDownTestCase();
+}
+TEST(TelloTelemetryTest, ReceiveWifiStrength)
+{
+
+    // Setup
+    using asio::ip::udp;
+    asio::io_service io_service_; // Manages IO for this socket
+    unsigned short port = 9000;
+    unsigned short drone_port = 8889;
+    std::string drone_ip = "192.168.10.1";
+    udp::endpoint remote_endpoint_(asio::ip::address_v4::from_string(drone_ip), drone_port);
+    udp::socket tello_socket(io_service_, udp::endpoint(udp::v4(), port)); // The socket
+    using namespace std::chrono_literals;
+    bool keep_receiving = true;
+    auto buffer_ = std::vector<unsigned char>(1024);
+    //Run
+
+    // Connect
+    auto pkt = tello_protocol::Packet("conn_req:\x96\x17");
+    tello_socket.send_to(asio::buffer(pkt.GetBuffer()), remote_endpoint_);
+
+    size_t r = 0;
+    tello_socket.send_to(asio::buffer(pkt.GetBuffer()), remote_endpoint_);
+    std::this_thread::sleep_for(0.5s);
+
+    auto tello_telemetry = tello_protocol::TelloTelemetry(spdlog::stdout_color_mt("tello_telemetry"));
+    auto flight_data = std::make_shared<tello_protocol::FlightData>(spdlog::stdout_color_mt("flight_data"));
+    tello_telemetry.SetFlightData(flight_data);
+
+    while (keep_receiving)
+    {
+        r = tello_socket.receive(asio::buffer(buffer_));
+
+        std::vector<unsigned char> data(buffer_.begin(), buffer_.begin() + r); // Strip last 2 bytes. they are CRC16
+
+        auto received = tello_protocol::Packet(data);
+        auto cmd = uint16(received.GetBuffer()[5], received.GetBuffer()[6]);
+        if (cmd == tello_protocol::WIFI_MSG)
+        {
+            tello_telemetry.GetFlightData()->SetWifiStrength(data[9]);
+            std::cout << "WifiStrength: " << tello_telemetry.GetFlightData()->GetWifiStrength() << '\n';
+            ASSERT_GE(tello_telemetry.GetFlightData()->GetWifiStrength(), 0);
+            keep_receiving = false;
+        }
+        std::fill(buffer_.begin(), buffer_.end(), 0);
+    }
+    TearDownTestCase();
+}
+
+TEST(TelloTelemetryTest, GET_ALT_LIMIT_MSG)
+{
+
+    // Setup
+    using asio::ip::udp;
+    asio::io_service io_service_; // Manages IO for this socket
+    unsigned short port = 9000;
+    unsigned short drone_port = 8889;
+    std::string drone_ip = "192.168.10.1";
+    udp::endpoint remote_endpoint_(asio::ip::address_v4::from_string(drone_ip), drone_port);
+    udp::socket tello_socket(io_service_, udp::endpoint(udp::v4(), port)); // The socket
+    using namespace std::chrono_literals;
+    bool keep_receiving = true;
+    auto buffer_ = std::vector<unsigned char>(1024);
+    //Run
+
+    // Connect
+    auto pkt = tello_protocol::Packet("conn_req:\x96\x17");
+    tello_socket.send_to(asio::buffer(pkt.GetBuffer()), remote_endpoint_);
+
+    size_t r = 0;
+    tello_socket.send_to(asio::buffer(pkt.GetBuffer()), remote_endpoint_);
+    std::this_thread::sleep_for(0.5s);
+
+    auto test_logger = spdlog::stdout_color_mt("test_logger");
+
+    auto send_pkt = [&tello_socket, &remote_endpoint_, &test_logger](const tello_protocol::Packet &pkt) {
+        tello_socket.send_to(asio::buffer(pkt.GetBuffer()), remote_endpoint_);
+    };
+
+    auto get_alt_limit = [&send_pkt, &test_logger]() {
+        test_logger->info("get altitude (cmd=0x{:x} seq=0x{:x})", tello_protocol::ALT_LIMIT_MSG, 0x01e4);
+        auto pkt = tello_protocol::Packet(tello_protocol::ALT_LIMIT_MSG);
+        pkt.Fixup();
+        send_pkt(pkt);
+    };
+
+    auto flight_data = tello_protocol::FlightData(spdlog::stdout_color_mt("flight_data"));
+
+    while (keep_receiving)
+    {
+        get_alt_limit();
+        r = tello_socket.receive(asio::buffer(buffer_));
+
+        std::vector<unsigned char> data(buffer_.begin(), buffer_.begin() + r); // Strip last 2 bytes. they are CRC16
+
+        auto received = tello_protocol::Packet(data);
+        auto cmd = uint16(received.GetBuffer()[5], received.GetBuffer()[6]);
+
+        if (cmd == tello_protocol::ALT_LIMIT_MSG)
+        {
+            std::cout << received.GetData();
+            flight_data.SetAltLimit(received.GetData());
+            ASSERT_GE(flight_data.GetAltLimit(), 0) << "Default value is 10[m]";
+            keep_receiving = false;
+        }
+        std::fill(buffer_.begin(), buffer_.end(), 0);
+        std::this_thread::sleep_for(0.05s);
+    }
+    TearDownTestCase();
+}
+
+TEST(TelloTelemetryTest, SET_ALT_LIMIT_MSG)
+{
+
+    // Setup
+    using asio::ip::udp;
+    asio::io_service io_service_; // Manages IO for this socket
+    unsigned short port = 9000;
+    unsigned short drone_port = 8889;
+    std::string drone_ip = "192.168.10.1";
+    udp::endpoint remote_endpoint_(asio::ip::address_v4::from_string(drone_ip), drone_port);
+    udp::socket tello_socket(io_service_, udp::endpoint(udp::v4(), port)); // The socket
+    using namespace std::chrono_literals;
+    bool keep_receiving = true;
+    auto buffer_ = std::vector<unsigned char>(1024);
+    //Run
+
+    // Connect
+    auto pkt = tello_protocol::Packet("conn_req:\x96\x17");
+    tello_socket.send_to(asio::buffer(pkt.GetBuffer()), remote_endpoint_);
+
+    size_t r = 0;
+    tello_socket.send_to(asio::buffer(pkt.GetBuffer()), remote_endpoint_);
+    std::this_thread::sleep_for(0.5s);
+
+    auto test_logger = spdlog::stdout_color_mt("test_logger");
+
+    auto send_pkt = [&tello_socket, &remote_endpoint_, &test_logger](const tello_protocol::Packet &pkt) {
+        tello_socket.send_to(asio::buffer(pkt.GetBuffer()), remote_endpoint_);
+    };
+
+    auto set_alt_limit = [&send_pkt, &test_logger](int limit) {
+        test_logger->info("set altitude limit={} (cmd=0x{:x} seq=0x{:x})", limit, tello_protocol::SET_ALT_LIMIT_CMD, 0x01e4);
+        auto pkt = tello_protocol::Packet(tello_protocol::SET_ALT_LIMIT_CMD);
+        pkt.AddByte(limit);
+        pkt.AddByte(0x00);
+        pkt.Fixup();
+        send_pkt(pkt);
+    };
+
+    auto get_alt_limit = [&send_pkt, &test_logger]() {
+        test_logger->info("get altitude (cmd=0x{:x} seq=0x{:x})", tello_protocol::ALT_LIMIT_MSG, 0x01e4);
+        auto pkt = tello_protocol::Packet(tello_protocol::ALT_LIMIT_MSG);
+        pkt.Fixup();
+        send_pkt(pkt);
+    };
+
+    auto tello_telemetry = tello_protocol::TelloTelemetry(spdlog::stdout_color_mt("tello_telemetry"));
+    auto flight_data = std::make_shared<tello_protocol::FlightData>(spdlog::stdout_color_mt("flight_data"));
+    tello_telemetry.SetFlightData(flight_data);
+
+    // Test
+    int limit = 50;
+    set_alt_limit(limit);
+    while (keep_receiving)
+    {
+        // set_alt_limit(10);
+        get_alt_limit();
+        r = tello_socket.receive(asio::buffer(buffer_));
+
+        std::vector<unsigned char> data(buffer_.begin(), buffer_.begin() + r); // Strip last 2 bytes. they are CRC16
+
+        auto received = tello_protocol::Packet(data);
+        auto cmd = uint16(received.GetBuffer()[5], received.GetBuffer()[6]);
+
+        if (cmd == tello_protocol::ALT_LIMIT_MSG)
+        {
+            std::cout << received.GetData();
+            tello_telemetry.GetFlightData()->SetAltLimit(received.GetData());
+            ASSERT_EQ(tello_telemetry.GetFlightData()->GetAltLimit(), limit);
+            keep_receiving = false;
+        }
+        std::fill(buffer_.begin(), buffer_.end(), 0);
+        std::this_thread::sleep_for(0.05s);
+    }
+    TearDownTestCase();
+}
+
+TEST(TelloTelemetryTest, GET_ATT_LIMIT_MSG)
+{
+
+    // Setup
+    using asio::ip::udp;
+    asio::io_service io_service_; // Manages IO for this socket
+    unsigned short port = 9000;
+    unsigned short drone_port = 8889;
+    std::string drone_ip = "192.168.10.1";
+    udp::endpoint remote_endpoint_(asio::ip::address_v4::from_string(drone_ip), drone_port);
+    udp::socket tello_socket(io_service_, udp::endpoint(udp::v4(), port)); // The socket
+    using namespace std::chrono_literals;
+    bool keep_receiving = true;
+    auto buffer_ = std::vector<unsigned char>(1024);
+    //Run
+
+    // Connect
+    auto pkt = tello_protocol::Packet("conn_req:\x96\x17");
+    tello_socket.send_to(asio::buffer(pkt.GetBuffer()), remote_endpoint_);
+
+    size_t r = 0;
+    tello_socket.send_to(asio::buffer(pkt.GetBuffer()), remote_endpoint_);
+    std::this_thread::sleep_for(0.5s);
+
+    auto test_logger = spdlog::stdout_color_mt("test_logger");
+
+    auto send_pkt = [&tello_socket, &remote_endpoint_, &test_logger](const tello_protocol::Packet &pkt) {
+        tello_socket.send_to(asio::buffer(pkt.GetBuffer()), remote_endpoint_);
+    };
+
+    auto get_att_limit = [&send_pkt, &test_logger]() {
+        test_logger->info("get attiude (cmd=0x{:x} seq=0x{:x})", tello_protocol::ATT_LIMIT_MSG, 0x01e4);
+        auto pkt = tello_protocol::Packet(tello_protocol::ATT_LIMIT_MSG);
+        pkt.Fixup();
+        send_pkt(pkt);
+    };
+
+    auto tello_telemetry = tello_protocol::TelloTelemetry(spdlog::stdout_color_mt("tello_telemetry"));
+    auto flight_data = std::make_shared<tello_protocol::FlightData>(spdlog::stdout_color_mt("flight_data"));
+    tello_telemetry.SetFlightData(flight_data);
+
+    while (keep_receiving)
+    {
+        get_att_limit();
+        r = tello_socket.receive(asio::buffer(buffer_));
+        std::vector<unsigned char> data(buffer_.begin(), buffer_.begin() + r); // Strip last 2 bytes. they are CRC16
+        auto received = tello_protocol::Packet(data);
+
+        auto cmd = uint16(received.GetBuffer()[5], received.GetBuffer()[6]);
+        if (cmd == tello_protocol::ATT_LIMIT_MSG)
+        {
+            tello_telemetry.GetFlightData()->SetAttLimit(received.GetData());
+            ASSERT_GE(tello_telemetry.GetFlightData()->GetAttLimit(), 0) << "Default value is 10[deg]";
+            keep_receiving = false;
+        }
+        std::fill(buffer_.begin(), buffer_.end(), 0);
+        std::this_thread::sleep_for(0.05s);
+    }
+    TearDownTestCase();
+}
+
+TEST(TelloTelemetryTest, SET_ATT_LIMIG_MSG)
+{
+
+    // Setup
+    using asio::ip::udp;
+    asio::io_service io_service_; // Manages IO for this socket
+    unsigned short port = 9000;
+    unsigned short drone_port = 8889;
+    std::string drone_ip = "192.168.10.1";
+    udp::endpoint remote_endpoint_(asio::ip::address_v4::from_string(drone_ip), drone_port); // Socket for sending CMD to drone
+    udp::socket tello_socket(io_service_, udp::endpoint(udp::v4(), port)); // The socket for receiving data
+    using namespace std::chrono_literals;
+    bool keep_receiving = true;
+    auto buffer_ = std::vector<unsigned char>(1024);
+    //Run
+
+    // Connect
+    auto pkt = tello_protocol::Packet("conn_req:\x96\x17");
+    tello_socket.send_to(asio::buffer(pkt.GetBuffer()), remote_endpoint_);
+
+    size_t r = 0;
+    tello_socket.send_to(asio::buffer(pkt.GetBuffer()), remote_endpoint_);
+    std::this_thread::sleep_for(0.5s);
+
+    auto test_logger = spdlog::stdout_color_mt("test_logger");
+
+    auto send_pkt = [&tello_socket, &remote_endpoint_, &test_logger](const tello_protocol::Packet &pkt) {
+        tello_socket.send_to(asio::buffer(pkt.GetBuffer()), remote_endpoint_);
+    };
+
+    auto set_att_limit = [&send_pkt, &test_logger](float limit) {
+        /* 
+            Info: set attitude limit=10 (cmd=0x1058 seq=0x01e4)
+            limit 10 == 0x41200000
+            bytearray(b'\xcc\x00\x00\x00hX\x10\x00\x00\x00\x00 A')
+            b'\x00\x00\x00 A\xff\x8b'
+            '00 00 00 20 41'
+
+            GetAtt
+            b'\xcc\x80\x00R\xb0Y\x10\x00\x00\x00\x00\x00 A\xff\x8b'
+            data[9:] = b'\x00\x00\x00 A\xff\x8b'
+        */
+        test_logger->info("set attitude limit={} (cmd=0x{:x} seq=0x{:x})", limit, tello_protocol::ATT_LIMIT_CMD, 0x01e4);
+        auto pkt = tello_protocol::Packet(tello_protocol::ATT_LIMIT_CMD);
+
+        // Float to hex
+        unsigned char ch[4];
+        memcpy(ch, &limit, sizeof(float));
+        test_logger->info("{:x}{:x}{:x}{:x}", ch[3], ch[2], ch[1], ch[0]);
+
+        pkt.AddByte(ch[0]);        
+        pkt.AddByte(ch[1]);
+        pkt.AddByte(ch[2]);
+        pkt.AddByte(ch[3]);
+        test_logger->info("{}", spdlog::to_hex(pkt.GetBuffer()));
+        pkt.Fixup();
+        send_pkt(pkt);
+    };
+
+    auto get_att_limit = [&send_pkt, &test_logger]() {
+        test_logger->info("get attiude (cmd=0x{:x} seq=0x{:x})", tello_protocol::ATT_LIMIT_MSG, 0x01e4);
+        auto pkt = tello_protocol::Packet(tello_protocol::ATT_LIMIT_MSG);
+        pkt.Fixup();
+        send_pkt(pkt);
+    };
+
+    auto tello_telemetry = tello_protocol::TelloTelemetry(spdlog::stdout_color_mt("tello_telemetry"));
+    auto flight_data = std::make_shared<tello_protocol::FlightData>(spdlog::stdout_color_mt("flight_data"));
+    tello_telemetry.SetFlightData(flight_data);
+
+    // Test
+    float limit = 15.6;
+    set_att_limit(limit);
+    while (keep_receiving)
+    {
+        get_att_limit();
+        r = tello_socket.receive(asio::buffer(buffer_));
+
+        std::vector<unsigned char> data(buffer_.begin(), buffer_.begin() + r); // Strip last 2 bytes. they are CRC16
+
+        auto received = tello_protocol::Packet(data);
+        auto cmd = uint16(received.GetBuffer()[5], received.GetBuffer()[6]);
+
+        if (cmd == tello_protocol::ATT_LIMIT_MSG)
+        {
+            std::cout << received.GetData();
+            tello_telemetry.GetFlightData()->SetAttLimit(received.GetData());
+            ASSERT_EQ(tello_telemetry.GetFlightData()->GetAttLimit(), limit);
+            keep_receiving = false;
+        }
+        std::fill(buffer_.begin(), buffer_.end(), 0);
+        std::this_thread::sleep_for(0.05s);
     }
     TearDownTestCase();
 }
